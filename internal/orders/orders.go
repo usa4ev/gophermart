@@ -27,7 +27,9 @@ func OrderNumValid(orderNum string) bool {
 
 	// Luhn algorithm validation
 	var luhn int64
-	number := origNumber
+
+	control := origNumber % 10
+	number := origNumber / 10
 
 	for i := 0; number > 0; i++ {
 		cur := number % 10
@@ -43,5 +45,5 @@ func OrderNumValid(orderNum string) bool {
 		number = number / 10
 	}
 
-	return (origNumber%10+luhn%10)%10 == 0
+	return (control+luhn%10)%10 == 0
 }

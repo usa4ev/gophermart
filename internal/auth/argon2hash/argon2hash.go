@@ -11,11 +11,11 @@ import (
 )
 
 type Params struct {
-	memory      uint32
-	iterations  uint32
-	parallelism uint8
-	saltLength  uint32
-	keyLength   uint32
+	Memory      uint32
+	Iterations  uint32
+	Parallelism uint8
+	SaltLength  uint32
+	KeyLength   uint32
 }
 
 const (
@@ -32,17 +32,17 @@ var (
 )
 
 func GenerateFromPassword(password string, p Params) (string, error) {
-	salt, err := generateRandomBytes(p.saltLength)
+	salt, err := generateRandomBytes(p.SaltLength)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate salt for pwd encryption: %w", err)
 	}
 
-	hash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	hash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
 
 	b64salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64hash := base64.RawStdEncoding.EncodeToString(hash)
 
-	return fmt.Sprintf("$argon2id$v=%v$m=%d,t=%d,p=%o$%s$%s", argon2.Version, p.memory, p.iterations, p.parallelism, b64salt, b64hash),
+	return fmt.Sprintf("$argon2id$v=%v$m=%d,t=%d,p=%o$%s$%s", argon2.Version, p.Memory, p.Iterations, p.Parallelism, b64salt, b64hash),
 		nil
 }
 
@@ -58,11 +58,11 @@ func generateRandomBytes(n uint32) ([]byte, error) {
 
 func DefaultParams() Params {
 	return Params{
-		memory:      memory,
-		iterations:  iterations,
-		parallelism: parallelism,
-		saltLength:  saltLength,
-		keyLength:   keyLength,
+		Memory:      memory,
+		Iterations:  iterations,
+		Parallelism: parallelism,
+		SaltLength:  saltLength,
+		KeyLength:   keyLength,
 	}
 }
 
@@ -82,7 +82,7 @@ func parseHash(encodedHash string) (p *Params, salt, hash []byte, err error) {
 	}
 
 	p = &Params{}
-	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.memory, &p.iterations, &p.parallelism)
+	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.Memory, &p.Iterations, &p.Parallelism)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -92,14 +92,14 @@ func parseHash(encodedHash string) (p *Params, salt, hash []byte, err error) {
 		return nil, nil, nil, err
 	}
 
-	p.saltLength = uint32(len(salt))
+	p.SaltLength = uint32(len(salt))
 
 	hash, err = base64.RawStdEncoding.Strict().DecodeString(vals[5])
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	p.keyLength = uint32(len(hash))
+	p.KeyLength = uint32(len(hash))
 
 	return p, salt, hash, nil
 }
@@ -111,7 +111,7 @@ func ComparePasswordAndHash(password, encodedHash string) (match bool, err error
 	}
 
 	// Derive the key from the other password using the same parameters.
-	givenHash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	givenHash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
 
 	// Check that the contents of the hashed passwords are identical. Note
 	// that we are using the subtle.ConstantTimeCompare() function for this

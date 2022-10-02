@@ -15,12 +15,12 @@ import (
 )
 
 func main() {
-	сfg := config.New()
-	strg, err := storage.New(сfg.DatabaseDSN())
-	srv := server.New(strg, сfg)
+	cfg := config.New()
+	strg, err := storage.New(cfg.DatabaseDSN())
+	srv := server.New(strg, cfg)
 
 	r := newRouter(srv)
-	server := &http.Server{Addr: сfg.RunAddress(), Handler: r}
+	server := &http.Server{Addr: cfg.RunAddress(), Handler: r}
 
 	// Listen for syscall signals for process to interrupt/quit
 	sig := make(chan os.Signal, 1)

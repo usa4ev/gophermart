@@ -122,17 +122,18 @@ func (srv Server) updateBalance() {
 	}
 }
 
-func (srv Server) startUpdBalances() {
+func (srv Server) updBalances() {
 	// once a day
 	timer := time.NewTimer(time.Until(time.Now().AddDate(0, 0, 1).Round(24 * time.Hour)))
 
 	for {
 		<-timer.C
 		srv.updateBalance()
+		timer = time.NewTimer(time.Until(time.Now().AddDate(0, 0, 1).Round(24 * time.Hour)))
 	}
 }
 
-func (srv Server) startUpdStatuses() {
+func (srv Server) updStatuses() {
 	// every 5 minutes
 	ticker := time.NewTicker(5 * time.Minute)
 
@@ -147,8 +148,8 @@ func (srv Server) start() error {
 		return fmt.Errorf("server is already running")
 	}
 
-	srv.startUpdBalances()
-	srv.startUpdStatuses()
+	go srv.updBalances()
+	go srv.updStatuses()
 
 	return nil
 }
@@ -205,7 +206,7 @@ func (srv Server) StoreOrder(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	body, err := io.ReadAll(r.Body())
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to read request message: %v", err), http.StatusInternalServerError)
 

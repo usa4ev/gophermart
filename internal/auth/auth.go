@@ -84,7 +84,7 @@ func RegisterUser(ctx context.Context, userName, password string, ua UserCheckAd
 	err := validateUserName(ctx, userName, ua)
 	if err != nil {
 		if errors.Is(err, ErrUserAlreadyExists) {
-			return "", fmt.Errorf("invalid user name: %v", err)
+			return "", fmt.Errorf("invalid user name %w", err)
 		}
 
 		return "", err
@@ -100,9 +100,9 @@ func RegisterUser(ctx context.Context, userName, password string, ua UserCheckAd
 }
 
 func validateUserName(ctx context.Context, userName string, ua UserCheckAdder) error {
-	if ok, err := ua.UserExists(ctx, userName); err != nil {
+	if exists, err := ua.UserExists(ctx, userName); err != nil {
 		return fmt.Errorf("failed to check if user already exists %w", err)
-	} else if !ok {
+	} else if exists {
 		return ErrUserAlreadyExists
 	}
 

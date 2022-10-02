@@ -249,7 +249,7 @@ func (db Database) UserExists(ctx context.Context, userName string) (bool, error
 		return false, nil
 	} else if err != nil {
 
-		return false, fmt.Errorf("failed to get a password hash from Database: %w", err)
+		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
 
 	return true, nil

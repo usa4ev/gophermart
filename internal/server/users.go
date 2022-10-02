@@ -29,7 +29,7 @@ func (srv Server) Register(w http.ResponseWriter, r *http.Request) {
 	cred := credentials{}
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(cred)
+	err := dec.Decode(&cred)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
 
@@ -73,7 +73,7 @@ func (srv Server) Login(w http.ResponseWriter, r *http.Request) {
 	cred := credentials{}
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(cred)
+	err := dec.Decode(&cred)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
 
