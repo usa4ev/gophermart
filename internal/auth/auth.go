@@ -63,6 +63,10 @@ func Login(ctx context.Context, userName, password string, p passwordGetter) (st
 	}
 
 	ok, err := argon2hash.ComparePasswordAndHash(password, pwdHash)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify password: %v", err)
+	}
+
 	if !ok {
 		return "", ErrUnathorized
 	}

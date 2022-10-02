@@ -16,7 +16,7 @@ func TestComparePasswordAndHash(t *testing.T) {
 			require.NoError(t, err)
 
 			ok, err := ComparePasswordAndHash(tt, hash)
-
+			require.NoError(t, err)
 			assert.Equal(t, true, ok, "passwords don't match when expected")
 		})
 	}
@@ -28,7 +28,7 @@ func TestComparePasswordAndHash(t *testing.T) {
 			require.NoError(t, err)
 
 			ok, err := ComparePasswordAndHash(tt+tt[:3], hash)
-
+			require.NoError(t, err)
 			assert.Equal(t, false, ok, "passwords match when expected to not")
 		})
 	}

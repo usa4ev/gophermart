@@ -14,7 +14,7 @@ func TestOpenVerify(t *testing.T) {
 	}
 	tt := args{userID: "user1", lifeTime: 5 * time.Second}
 	t.Run("open/close no error", func(t *testing.T) {
-		got, err := Open(tt.userID, tt.lifeTime)
+		got, _, err := Open(tt.userID, tt.lifeTime)
 		require.NoError(t, err)
 
 		userID, err := Verify(got)
@@ -30,7 +30,7 @@ func TestOpenVerify(t *testing.T) {
 	})
 
 	t.Run("expired token", func(t *testing.T) {
-		got, err := Open(tt.userID, tt.lifeTime)
+		got, _, err := Open(tt.userID, tt.lifeTime)
 		require.NoError(t, err)
 
 		timer := time.NewTimer(6 * time.Second)

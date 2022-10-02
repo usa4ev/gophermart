@@ -59,6 +59,7 @@ func TestRegister(t *testing.T) {
 			enc.Encode(tt)
 
 			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/register", buf)
+			require.NoError(t, err)
 
 			strg.EXPECT().UserExists(gomock.Any(), tt.Login).Return(tt.exists, nil).Times(1)
 			if !tt.exists {
@@ -66,6 +67,7 @@ func TestRegister(t *testing.T) {
 			}
 
 			res, err := cl.Do(req)
+			defer res.Body.Close()
 			require.NoError(t, err)
 			errTxt, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
@@ -113,10 +115,12 @@ func TestLogin(t *testing.T) {
 			enc.Encode(tt)
 
 			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/login", buf)
+			require.NoError(t, err)
 
 			strg.EXPECT().GetPasswordHash(gomock.Any(), tt.Login).Return("userID", tt.hash, nil).Times(1)
 
 			res, err := cl.Do(req)
+			defer res.Body.Close()
 			require.NoError(t, err)
 			errTxt, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
@@ -144,7 +148,7 @@ func TestStoreOrder(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		order      string `json:"login"`
+		order      string
 		wantCode   int
 		exists     bool
 		conflict   bool
@@ -204,6 +208,7 @@ func TestStoreOrder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer([]byte(tt.order))
 			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/orders", buf)
+			require.NoError(t, err)
 
 			if tt.orderValid {
 				number := strings.TrimSpace(tt.order)
@@ -217,6 +222,7 @@ func TestStoreOrder(t *testing.T) {
 			}
 
 			res, err := cl.Do(req)
+			defer res.Body.Close()
 			require.NoError(t, err)
 
 			errTxt, err := io.ReadAll(res.Body)
@@ -237,7 +243,7 @@ func TestLoadOrders(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		order      string `json:"login"`
+		order      string
 		wantCode   int
 		exists     bool
 		conflict   bool
@@ -297,6 +303,7 @@ func TestLoadOrders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer([]byte(tt.order))
 			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/orders", buf)
+			require.NoError(t, err)
 
 			if tt.orderValid {
 				number := strings.TrimSpace(tt.order)
@@ -310,6 +317,7 @@ func TestLoadOrders(t *testing.T) {
 			}
 
 			res, err := cl.Do(req)
+			defer res.Body.Close()
 			require.NoError(t, err)
 
 			errTxt, err := io.ReadAll(res.Body)

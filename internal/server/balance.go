@@ -60,7 +60,7 @@ func (srv Server) Withdraw(w http.ResponseWriter, r *http.Request) {
 	op := orders.Withdrawal{}
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(op)
+	err := dec.Decode(&op)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
 

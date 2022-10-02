@@ -272,7 +272,7 @@ func (db Database) GetPasswordHash(ctx context.Context, userName string) (string
 	return userID, hash, nil
 }
 
-func (db Database) execInsUpdStatement(ctx context.Context, query string, args ...any) (int64, error) {
+func (db Database) execInsUpdStatement(ctx context.Context, query string, args ...interface{}) (int64, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return 0, err
