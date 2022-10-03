@@ -124,7 +124,7 @@ func (db Database) UserExists(ctx context.Context, userName string) (bool, error
 
 	err := db.QueryRowContext(ctx, query, userName).Scan(&exists)
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if exists == false || errors.Is(err, sql.ErrNoRows) {
 
 		return false, nil
 	} else if err != nil {
