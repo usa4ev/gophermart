@@ -17,10 +17,14 @@ import (
 func main() {
 	cfg := config.New()
 	strg, err := storage.New(cfg.DatabaseDSN())
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	srv := server.New(strg, cfg)
 
 	r := newRouter(srv)
-	server := &http.Server{Addr: cfg.RunAddress(), Handler: r}
+	webSrv := &http.Server{Addr: cfg.RunAddress(), Handler: r}
 
 	// Listen for syscall signals for process to interrupt/quit
 	sig := make(chan os.Signal, 1)
@@ -29,13 +33,13 @@ func main() {
 	go func() {
 		call := <-sig
 
-		server.Close()
+		webSrv.Close()
 
 		fmt.Printf("graceful shutdown, got call: %v\n", call.String())
 	}()
 
 	// Run the server
-	err = server.ListenAndServe()
+	err = webSrv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err.Error())
 	}

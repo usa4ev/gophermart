@@ -10,10 +10,13 @@ import (
 	"net/http"
 )
 
-type credentials struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
+type (
+	credentials struct {
+		Login    string `json:"login"`
+		Password string `json:"password"`
+	}
+	srvCtxKey string
+)
 
 // Register handler adds a new user if one does not exist and opens a new session
 func (srv Server) Register(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +46,7 @@ func (srv Server) Register(w http.ResponseWriter, r *http.Request) {
 
 		return
 	} else if err != nil {
-		http.Error(w, fmt.Sprintf("failed to create user: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("failed to create user: %v", err), http.StatusInternalServerError)
 
 		return
 	}
@@ -127,7 +130,7 @@ func (srv Server) AuthorisationMW(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(context.Background(), "userID", userID)
+		ctx := context.WithValue(context.Background(), srvCtxKey("userID"), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

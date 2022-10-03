@@ -55,8 +55,17 @@ func TestRegister(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("Register", func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
-			enc := json.NewEncoder(buf)
-			enc.Encode(tt)
+			//enc := json.NewEncoder(buf)
+			//enc.Encode(tt)
+
+			m := []byte(`
+			{
+				"login": "` + tt.Login + `",
+				"password": "` + tt.Password + `"
+			}
+		`)
+			_, err := buf.Write(m)
+			require.NoError(t, err)
 
 			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/register", buf)
 			require.NoError(t, err)
@@ -67,11 +76,17 @@ func TestRegister(t *testing.T) {
 			}
 
 			res, err := cl.Do(req)
-			defer res.Body.Close()
 			require.NoError(t, err)
+			defer res.Body.Close()
+
 			errTxt, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantCode, res.StatusCode, string(errTxt))
+
+			if !tt.exists {
+				authorizationHeader := res.Header.Get("Set-Cookie")
+				assert.NotEqual(t, "", authorizationHeader)
+			}
 		})
 	}
 }
@@ -120,8 +135,9 @@ func TestLogin(t *testing.T) {
 			strg.EXPECT().GetPasswordHash(gomock.Any(), tt.Login).Return("userID", tt.hash, nil).Times(1)
 
 			res, err := cl.Do(req)
-			defer res.Body.Close()
 			require.NoError(t, err)
+			defer res.Body.Close()
+
 			errTxt, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantCode, res.StatusCode, string(errTxt))
@@ -222,103 +238,8 @@ func TestStoreOrder(t *testing.T) {
 			}
 
 			res, err := cl.Do(req)
+			require.NoError(t, err)
 			defer res.Body.Close()
-			require.NoError(t, err)
-
-			errTxt, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantCode, res.StatusCode, string(errTxt))
-		})
-	}
-}
-
-func TestLoadOrders(t *testing.T) {
-	cfg := conf.New()
-	ctrl := gomock.NewController(t)
-	strg := mocks.NewMockStorage(ctrl)
-
-	// New test server
-	ts := newTestSrv(cfg, strg)
-	cl := newTestClient(ts)
-
-	tests := []struct {
-		name       string
-		order      string
-		wantCode   int
-		exists     bool
-		conflict   bool
-		orderValid bool
-	}{
-		{
-			name:       "new valid",
-			order:      "12345678903",
-			wantCode:   http.StatusAccepted,
-			exists:     false,
-			conflict:   false,
-			orderValid: true,
-		},
-		{
-			name:       "new valid with spaces",
-			order:      " 12345678903 \n",
-			wantCode:   http.StatusAccepted,
-			exists:     false,
-			conflict:   false,
-			orderValid: true,
-		},
-		{
-			name:       "new invalid - wrong ctrl number",
-			order:      "12345678904",
-			wantCode:   http.StatusUnprocessableEntity,
-			exists:     false,
-			conflict:   false,
-			orderValid: false,
-		},
-		{
-			name:       "new invalid - string",
-			order:      "non int",
-			wantCode:   http.StatusUnprocessableEntity,
-			exists:     false,
-			conflict:   false,
-			orderValid: false,
-		},
-		{
-			name:       "order already exists",
-			order:      "12345678903",
-			wantCode:   http.StatusOK,
-			exists:     true,
-			conflict:   false,
-			orderValid: true,
-		},
-		{
-			name:       "order conflict",
-			order:      "12345678903",
-			wantCode:   http.StatusConflict,
-			exists:     false,
-			conflict:   true,
-			orderValid: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			buf := bytes.NewBuffer([]byte(tt.order))
-			req, err := http.NewRequest(http.MethodPost, "http://"+cfg.RunAddress()+"/api/user/orders", buf)
-			require.NoError(t, err)
-
-			if tt.orderValid {
-				number := strings.TrimSpace(tt.order)
-				if tt.exists {
-					strg.EXPECT().StoreOrder(gomock.Any(), number, "TestUser").Return(storageerrs.ErrOrderLoaded).Times(1)
-				} else if tt.conflict {
-					strg.EXPECT().StoreOrder(gomock.Any(), number, "TestUser").Return(storageerrs.ErrOrderExists).Times(1)
-				} else {
-					strg.EXPECT().StoreOrder(gomock.Any(), number, "TestUser").Return(nil).Times(1)
-				}
-			}
-
-			res, err := cl.Do(req)
-			defer res.Body.Close()
-			require.NoError(t, err)
 
 			errTxt, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
@@ -377,7 +298,7 @@ func defaultRoute(srv Server) func(r chi.Router) {
 
 func authMock(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), "userID", "TestUser")
+		ctx := context.WithValue(r.Context(), srvCtxKey("userID"), "TestUser")
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

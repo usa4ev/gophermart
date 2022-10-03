@@ -68,6 +68,9 @@ func (srv Server) updateStatuses(servicePath string) {
 	defer cancel()
 
 	ordersToProcess, err := srv.strg.OrdersToProcess(ctx)
+	if err != nil {
+		log.Printf("failed to get orders to update status: %v\n", err)
+	}
 
 	batch := make([]orders.Status, 0)
 
@@ -78,6 +81,8 @@ func (srv Server) updateStatuses(servicePath string) {
 			log.Printf("failed to access accrual system: %v\n", err)
 			continue
 		}
+
+		defer res.Body.Close()
 
 		if res.StatusCode == http.StatusTooManyRequests {
 			// limit's been reached, so we're done here for now
@@ -94,7 +99,11 @@ func (srv Server) updateStatuses(servicePath string) {
 
 		status := orders.Status{}
 		dec := json.NewDecoder(res.Body)
-		dec.Decode(&status)
+		err = dec.Decode(&status)
+		if err != nil {
+			log.Printf("failed to decode response of the accrual system: %v\n", err)
+			continue
+		}
 
 		if currentStatus == status.Status {
 			// nothing changed, needless to update this order
@@ -106,9 +115,7 @@ func (srv Server) updateStatuses(servicePath string) {
 
 	err = srv.strg.UpdateStatuses(ctx, batch)
 	if err != nil {
-		if err != nil {
-			log.Printf("%v", err)
-		}
+		log.Printf("%v", err)
 	}
 }
 
@@ -190,7 +197,7 @@ func (srv Server) GzipMW(next http.Handler) http.Handler {
 }
 
 func (srv Server) StoreOrder(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(srvCtxKey("userID")).(string)
 	if !ok {
 		http.Error(w, "request context is missing user ID", http.StatusInternalServerError)
 
