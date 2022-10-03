@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/usa4ev/gophermart/internal/orders"
+	"log"
 	"net/http"
+
+	"github.com/usa4ev/gophermart/internal/orders"
 )
 
 type balance struct {
@@ -14,7 +16,7 @@ type balance struct {
 }
 
 func (srv Server) LoadBalance(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(srvCtxKey("userID")).(string)
 	if !ok {
 		http.Error(w, "request context is missing user ID", http.StatusInternalServerError)
 
@@ -37,20 +39,26 @@ func (srv Server) LoadBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", ctJSON)
+
 	w.Write(buf.Bytes())
 }
 
 func (srv Server) Withdraw(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(srvCtxKey("userID")).(string)
 	if !ok {
-		http.Error(w, "request context is missing user ID", http.StatusInternalServerError)
+		errtxt := "request context is missing user ID"
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 
 	ct := r.Header.Get("Content-Type")
 	if ct != "" && ct != ctJSON {
-		http.Error(w, fmt.Sprintf("unexpected content-type %v", ct), http.StatusBadRequest)
+		errtxt := fmt.Sprintf("unexpected content-type %v", ct)
+		http.Error(w, errtxt, http.StatusBadRequest)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
@@ -62,19 +70,25 @@ func (srv Server) Withdraw(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&op)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
+		errtxt := fmt.Sprintf("failed to decode a message: %v", err)
+		http.Error(w, errtxt, http.StatusBadRequest)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 
 	if !orders.OrderNumValid(op.Order) {
-		http.Error(w, fmt.Sprintf("invalid order number: %v", err), http.StatusUnprocessableEntity)
+		errtxt := fmt.Sprintf("invalid order number: %v", err)
+		http.Error(w, errtxt, http.StatusUnprocessableEntity)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 
 	if total, _, err := srv.strg.LoadBalance(r.Context(), userID); err != nil {
-		http.Error(w, fmt.Sprintf("failed to get balnce from database: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to get balnce from database: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	} else if total < op.Sum {
@@ -85,26 +99,34 @@ func (srv Server) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	err = srv.strg.Withdraw(r.Context(), userID, op.Order, op.Sum)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to process a withdraw operation: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to process a withdraw operation: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 }
 
 func (srv Server) LoadWithdrawals(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(srvCtxKey("userID")).(string)
 	if !ok {
-		http.Error(w, "request context is missing user ID", http.StatusInternalServerError)
+		errtxt := "request context is missing user ID"
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 
-	res, err := srv.strg.LoadOrders(r.Context(), userID)
+	res, err := srv.strg.LoadWithdrawals(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get withdrawals from database: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to get withdrawals from database: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
+
+	w.Header().Add("Content-Type", ctJSON)
 
 	w.Write(res)
 }

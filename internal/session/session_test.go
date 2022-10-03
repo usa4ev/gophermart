@@ -1,10 +1,11 @@
 package session
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOpenVerify(t *testing.T) {
@@ -12,7 +13,9 @@ func TestOpenVerify(t *testing.T) {
 		userID   string
 		lifeTime time.Duration
 	}
+
 	tt := args{userID: "user1", lifeTime: 5 * time.Second}
+
 	t.Run("open/close no error", func(t *testing.T) {
 		got, _, err := Open(tt.userID, tt.lifeTime)
 		require.NoError(t, err)

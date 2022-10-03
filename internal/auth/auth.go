@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/usa4ev/gophermart/internal/auth/argon2hash"
 )
 
 type (
-	Authenticator struct {
-		pwdGetter passwordGetter
-	}
 	passwordGetter interface {
 		GetPasswordHash(cxt context.Context, userName string) (string, string, error)
 	}
@@ -64,7 +62,7 @@ func Login(ctx context.Context, userName, password string, p passwordGetter) (st
 
 	ok, err := argon2hash.ComparePasswordAndHash(password, pwdHash)
 	if err != nil {
-		return "", fmt.Errorf("failed to verify password: %v", err)
+		return "", fmt.Errorf("failed to verify password: %w", err)
 	}
 
 	if !ok {
@@ -75,9 +73,6 @@ func Login(ctx context.Context, userName, password string, p passwordGetter) (st
 }
 
 type (
-	Registrator struct {
-		usrAdder UserCheckAdder
-	}
 	UserCheckAdder interface {
 		AddUser(ctx context.Context, username, hash string) (string, error)
 		UserExists(ctx context.Context, username string) (bool, error)

@@ -2,8 +2,9 @@ package session
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 const secret = "KLjkjd34vnsiullJK23490"
@@ -28,6 +29,7 @@ func Verify(signedString string) (string, error) {
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		return claims["userID"].(string), nil
 	}
+
 	return "", fmt.Errorf("token does not contain user id")
 }
 

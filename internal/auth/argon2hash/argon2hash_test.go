@@ -1,16 +1,16 @@
 package argon2hash
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestComparePasswordAndHash(t *testing.T) {
 	tests := []string{"qwerty12345", "aujlihf87993*(&#$&*HER>|", "ПарольКириллицей234"}
 
 	for _, tt := range tests {
-
 		t.Run("matching passwords", func(t *testing.T) {
 			hash, err := GenerateFromPassword(tt, DefaultParams())
 			require.NoError(t, err)

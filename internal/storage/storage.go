@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/usa4ev/gophermart/internal/auth"
 	"github.com/usa4ev/gophermart/internal/orders"
 	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
-	"strings"
-	"time"
 
 	_ "github.com/jackc/pgx/stdlib"
 )
@@ -46,7 +47,7 @@ func (db Database) initDB() error {
 	query := `CREATE TABLE IF NOT EXISTS users (
 				id VARCHAR(100) PRIMARY KEY,
 				username VARCHAR(256) not null,
-                pwdhash VARCHAR(100) not null);`
+                pwdhash VARCHAR(256) not null);`
 
 	_, err := db.Exec(query)
 	if err != nil {
@@ -102,8 +103,7 @@ func (db Database) initDB() error {
 func (db Database) AddUser(ctx context.Context, username, hash string) (string, error) {
 	id := uuid.New().String()
 
-	query := `INSERT INTO users(id, username, pwdhash) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING;
-		INSERT INTO balances(customer, ts, balance, total_withdraw) VALUES ($1, now()::timestamptz, 0, 0) ON CONFLICT (customer) DO NOTHING;`
+	query := `INSERT INTO users(id, username, pwdhash) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING;`
 
 	rowsAffected, err := db.execInsUpdStatement(ctx, query, id, username, hash)
 
@@ -111,6 +111,14 @@ func (db Database) AddUser(ctx context.Context, username, hash string) (string, 
 		return "", err
 	} else if rowsAffected == 0 {
 		return "", auth.ErrUserAlreadyExists
+	}
+
+	query = `INSERT INTO balances(customer, ts, balance, total_withdraw) VALUES ($1, now()::timestamptz, 0, 0) ON CONFLICT (customer) DO NOTHING;`
+
+	_, err = db.execInsUpdStatement(ctx, query, id)
+
+	if err != nil {
+		return "", err
 	}
 
 	return id, nil
@@ -125,10 +133,8 @@ func (db Database) UserExists(ctx context.Context, userName string) (bool, error
 	err := db.QueryRowContext(ctx, query, userName).Scan(&exists)
 
 	if exists == false || errors.Is(err, sql.ErrNoRows) {
-
 		return false, nil
 	} else if err != nil {
-
 		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
 
@@ -159,7 +165,7 @@ func (db Database) execInsUpdStatement(ctx context.Context, query string, args .
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(ctx, query, args)
+	res, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("error when executing query context %w", err)
 	}
@@ -178,16 +184,18 @@ func (db Database) execInsUpdStatement(ctx context.Context, query string, args .
 }
 
 func (db Database) StoreOrder(ctx context.Context, orderNum, userID string) error {
-	query := "INSERT INTO orders(number, customer, ts, uploaded, status, income) VALUES ($1, $2, now()::timestamptz, now(), 'NEW', 0)"
+	query := "INSERT INTO orders(number, customer, ts, uploaded, status, income) VALUES ($1, $2, now()::timestamptz, now(), 'NEW', 0) ON CONFLICT (number) DO NOTHING"
 
 	rowsAffected, err := db.execInsUpdStatement(ctx, query, orderNum, userID)
 
 	if err != nil {
 		return err
 	} else if rowsAffected == 0 {
-		err := db.QueryRow(query, orderNum, userID).Scan()
+		query := "SELECT EXISTS(SELECT 1 FROM orders WHERE number = $1 AND customer = $2)"
+		exists := false
+		err := db.QueryRow(query, orderNum, userID).Scan(&exists)
 
-		if errors.Is(err, sql.ErrNoRows) {
+		if exists {
 			return storageerrs.ErrOrderLoaded
 		} else if err != nil {
 			return fmt.Errorf("failed to get an order info from Database: %w", err)
@@ -202,7 +210,7 @@ func (db Database) StoreOrder(ctx context.Context, orderNum, userID string) erro
 type order struct {
 	Number     string    `json:"number"`
 	Status     string    `json:"status"`
-	Accrual    int       `json:"accrual,omitempty"`
+	Accrual    float64   `json:"accrual,omitempty"`
 	UploadedAt time.Time `json:"uploaded_at"`
 }
 
@@ -219,6 +227,7 @@ func (db Database) LoadOrders(ctx context.Context, userID string) ([]byte, error
 
 	for rows.Next() {
 		order := order{}
+
 		err := rows.Scan(&order.Number, &order.UploadedAt, &order.Accrual, &order.Status)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan values from batabase result: %w", err)
@@ -229,8 +238,8 @@ func (db Database) LoadOrders(ctx context.Context, userID string) ([]byte, error
 
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
-	err = enc.Encode(orderBatch)
-	if err != nil {
+
+	if err = enc.Encode(orderBatch); err != nil {
 		return nil, fmt.Errorf("failed to encode orders: %w", err)
 	}
 
@@ -246,9 +255,9 @@ func (db Database) LoadBalance(ctx context.Context, userID string) (float64, flo
 
 	rows, err := db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to read orders from Database: %w", err)
+		return 0, 0, fmt.Errorf("failed to read balance from Database: %w", err)
 	} else if rows.Err() != nil {
-		return 0, 0, fmt.Errorf("failed to read orders from Database: %w", err)
+		return 0, 0, fmt.Errorf("failed to read balance from Database: %w", err)
 	}
 
 	var total, withdrawn float64
@@ -266,7 +275,7 @@ func (db Database) LoadBalance(ctx context.Context, userID string) (float64, flo
 func (db Database) Withdraw(ctx context.Context, userID, number string, sum float64) error {
 	query := "INSERT INTO withdrawals(number, customer, withdraw, ts, processed) VALUES ($1, $2, $3, now()::timestamptz, now())"
 
-	rowsAffected, err := db.execInsUpdStatement(ctx, query, userID, number, sum)
+	rowsAffected, err := db.execInsUpdStatement(ctx, query, number, userID, sum)
 
 	if err != nil {
 		return err
@@ -291,6 +300,7 @@ func (db Database) LoadWithdrawals(ctx context.Context, userID string) ([]byte, 
 
 	for rows.Next() {
 		order := orders.Withdrawal{}
+
 		err := rows.Scan(&order.Order, &order.Sum, &order.ProcessedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan values from batabase result: %w", err)
@@ -341,9 +351,9 @@ func (db Database) UpdateStatuses(ctx context.Context, batch []orders.Status) er
 
 	c := 1
 	for _, status := range batch {
-		valueStrings = append(valueStrings, fmt.Sprintf("($%v, $%v, $%v)", c, c+1, c+2))
+		valueStrings = append(valueStrings, fmt.Sprintf("($%v, $%v::float, $%v)", c, c+1, c+2))
 		valueArgs = append(valueArgs, status.Order, status.Accrual, status.Status)
-		c += 2
+		c += 3
 	}
 
 	query := fmt.Sprintf(`UPDATE orders SET status = tmp.status, income = tmp.income, ts = now()::timestamptz 
@@ -351,7 +361,7 @@ func (db Database) UpdateStatuses(ctx context.Context, batch []orders.Status) er
 			WHERE orders.number = tmp.number`,
 		strings.Join(valueStrings, ","))
 
-	_, err := db.execInsUpdStatement(ctx, query, valueArgs)
+	_, err := db.execInsUpdStatement(ctx, query, valueArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to update statuses in Database: %w", err)
 	}

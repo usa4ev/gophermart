@@ -35,14 +35,14 @@ func OrderNumValid(orderNum string) bool {
 		cur := number % 10
 
 		if i%2 == 0 { // even
-			cur = cur * 2
+			cur *= 2
 			if cur > 9 {
 				cur = cur%10 + cur/10
 			}
 		}
 
 		luhn += cur
-		number = number / 10
+		number /= 10
 	}
 
 	return (control+luhn%10)%10 == 0

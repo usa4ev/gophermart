@@ -55,8 +55,8 @@ func New(opts ...configOption) *Config {
 	}
 
 	// default:
-	// s := config{"http://localhost:8080", "localhost:8080", os.Getenv("HOME") + "/storage.csv", "user=postgres password=postgres host=localhost port=5432 dbname=testdb"}
-	s := Config{runAddr: "localhost:8080", accSystem: "http://localhost:8085", sessionLifeTime: 30 * time.Minute}
+	// s := config{"http://localhost:8080", "localhost:8080", oOs.Getenv("HME") + "/storage.csv", "user=postgres password=postgres host=localhost port=5432 dbname=testdb"}
+	s := Config{runAddr: "localhost:8080", accSystem: "http://localhost:8085", sessionLifeTime: 10 * time.Minute}
 
 	if v := configOptions.envVars["RUN_ADDRESS"]; v != "" {
 		s.runAddr = v

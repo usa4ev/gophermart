@@ -5,20 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	argon2hash "github.com/usa4ev/gophermart/internal/auth/argon2hash"
-	conf "github.com/usa4ev/gophermart/internal/config"
-	"github.com/usa4ev/gophermart/internal/mocks"
-	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	conf "github.com/usa4ev/gophermart/internal/config"
+	"github.com/usa4ev/gophermart/internal/mocks"
+	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
 )
 
 func TestRegister(t *testing.T) {
@@ -50,20 +50,15 @@ func TestRegister(t *testing.T) {
 		},
 	}
 
-	h, _ := argon2hash.GenerateFromPassword("111", argon2hash.DefaultParams())
-	fmt.Println(h)
 	for _, tt := range tests {
 		t.Run("Register", func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
-			//enc := json.NewEncoder(buf)
-			//enc.Encode(tt)
-
 			m := []byte(`
-			{
-				"login": "` + tt.Login + `",
-				"password": "` + tt.Password + `"
-			}
-		`)
+				{
+					"login": "` + tt.Login + `",
+					"password": "` + tt.Password + `"
+				}
+			`)
 			_, err := buf.Write(m)
 			require.NoError(t, err)
 

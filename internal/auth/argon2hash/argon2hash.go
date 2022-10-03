@@ -6,8 +6,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/argon2"
 	"strings"
+
+	"golang.org/x/crypto/argon2"
 )
 
 type Params struct {
@@ -48,8 +49,8 @@ func GenerateFromPassword(password string, p Params) (string, error) {
 
 func generateRandomBytes(n uint32) ([]byte, error) {
 	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
+
+	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
 
@@ -77,6 +78,7 @@ func parseHash(encodedHash string) (p *Params, salt, hash []byte, err error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	if version != argon2.Version {
 		return nil, nil, nil, ErrIncompatibleVersion
 	}

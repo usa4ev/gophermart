@@ -3,15 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/usa4ev/gophermart/internal/config"
-	"github.com/usa4ev/gophermart/internal/server"
-	"github.com/usa4ev/gophermart/internal/storage"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/go-chi/chi"
+	"github.com/usa4ev/gophermart/internal/config"
+	"github.com/usa4ev/gophermart/internal/server"
+	"github.com/usa4ev/gophermart/internal/storage"
 )
 
 func main() {
@@ -67,6 +68,6 @@ func defaultRoute(srv server.Server) func(r chi.Router) {
 		r.With(srv.GzipMW, srv.AuthorisationMW).Method(http.MethodGet, "/api/user/orders", http.HandlerFunc(srv.LoadOrders))
 		r.With(srv.GzipMW, srv.AuthorisationMW).Method(http.MethodGet, "/api/user/balance", http.HandlerFunc(srv.LoadBalance))
 		r.With(srv.GzipMW, srv.AuthorisationMW).Method(http.MethodPost, "/api/user/balance/withdraw", http.HandlerFunc(srv.Withdraw))
-		r.With(srv.GzipMW, srv.AuthorisationMW).Method(http.MethodGet, "/api/user/balance/withdrawals", http.HandlerFunc(srv.LoadWithdrawals))
+		r.With(srv.GzipMW, srv.AuthorisationMW).Method(http.MethodGet, "/api/user/withdrawals", http.HandlerFunc(srv.LoadWithdrawals))
 	}
 }

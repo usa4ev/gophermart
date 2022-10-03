@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/usa4ev/gophermart/internal/auth"
 	"github.com/usa4ev/gophermart/internal/session"
-	"net/http"
 )
 
 type (
@@ -32,15 +33,14 @@ func (srv Server) Register(w http.ResponseWriter, r *http.Request) {
 	cred := credentials{}
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&cred)
-	if err != nil {
+
+	if err := dec.Decode(&cred); err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
 
 		return
 	}
 
 	userID, err := auth.RegisterUser(r.Context(), cred.Login, cred.Password, srv.strg)
-
 	if errors.Is(err, auth.ErrUserAlreadyExists) {
 		http.Error(w, err.Error(), http.StatusConflict)
 
@@ -52,9 +52,8 @@ func (srv Server) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, expiresAt, err := session.Open(userID, srv.cfg.SessionLifetime())
-
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to create new user: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to open new session: %v", err), http.StatusInternalServerError)
 
 		return
 	}
@@ -76,8 +75,8 @@ func (srv Server) Login(w http.ResponseWriter, r *http.Request) {
 	cred := credentials{}
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&cred)
-	if err != nil {
+
+	if err := dec.Decode(&cred); err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode a message: %v", err), http.StatusBadRequest)
 
 		return
@@ -98,7 +97,7 @@ func (srv Server) Login(w http.ResponseWriter, r *http.Request) {
 	token, expiresAt, err := session.Open(userID, srv.cfg.SessionLifetime())
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to create user: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to open new session: %v", err), http.StatusInternalServerError)
 
 		return
 	}
@@ -108,7 +107,7 @@ func (srv Server) Login(w http.ResponseWriter, r *http.Request) {
 
 func (srv Server) AuthorisationMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie("Authorisation")
+		c, err := r.Cookie("Authorization")
 		if err != nil {
 			if err == http.ErrNoCookie {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -127,6 +126,7 @@ func (srv Server) AuthorisationMW(next http.Handler) http.Handler {
 
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+
 			return
 		}
 

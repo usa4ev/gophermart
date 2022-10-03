@@ -6,14 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	_ "github.com/golang/mock/mockgen/model"
-	"github.com/usa4ev/gophermart/internal/orders"
-	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/usa4ev/gophermart/internal/orders"
+	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
 )
 
 const (
@@ -64,7 +64,7 @@ func (srv Server) updateStatuses(servicePath string) {
 		log.Fatal("Accrual service path is not defined")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	ordersToProcess, err := srv.strg.OrdersToProcess(ctx)
@@ -79,6 +79,7 @@ func (srv Server) updateStatuses(servicePath string) {
 		res, err := http.Get(servicePath + "/api/orders/" + order)
 		if err != nil {
 			log.Printf("failed to access accrual system: %v\n", err)
+
 			continue
 		}
 
@@ -94,6 +95,7 @@ func (srv Server) updateStatuses(servicePath string) {
 			}
 
 			log.Printf("unexpected response from accrual system. code: %v message: %v", res.StatusCode, string(body))
+
 			continue
 		}
 
@@ -102,6 +104,7 @@ func (srv Server) updateStatuses(servicePath string) {
 		err = dec.Decode(&status)
 		if err != nil {
 			log.Printf("failed to decode response of the accrual system: %v\n", err)
+
 			continue
 		}
 
@@ -111,6 +114,11 @@ func (srv Server) updateStatuses(servicePath string) {
 		}
 
 		batch = append(batch, status)
+	}
+
+	if len(batch) == 0 {
+		// nothing to update
+		return
 	}
 
 	err = srv.strg.UpdateStatuses(ctx, batch)
@@ -142,7 +150,7 @@ func (srv Server) updBalances() {
 
 func (srv Server) updStatuses() {
 	// every 5 minutes
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 
 	for {
 		<-ticker.C
@@ -215,7 +223,9 @@ func (srv Server) StoreOrder(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to read request message: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to read request message: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
@@ -231,13 +241,16 @@ func (srv Server) StoreOrder(w http.ResponseWriter, r *http.Request) {
 	err = srv.strg.StoreOrder(r.Context(), message, userID)
 	if errors.Is(err, storageerrs.ErrOrderExists) {
 		http.Error(w, err.Error(), http.StatusConflict)
+		log.Println(message)
 
 		return
 	} else if errors.Is(err, storageerrs.ErrOrderLoaded) {
 		// return 200 OK: order already has been loaded by this user
 		return
 	} else if err != nil {
-		http.Error(w, fmt.Sprintf("failed to save new order: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to save new order: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
@@ -246,19 +259,25 @@ func (srv Server) StoreOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv Server) LoadOrders(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(srvCtxKey("userID")).(string)
 	if !ok {
-		http.Error(w, "request context is missing user ID", http.StatusInternalServerError)
+		errtxt := "request context is missing user ID"
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
 
 	res, err := srv.strg.LoadOrders(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get orders from database: %v", err), http.StatusInternalServerError)
+		errtxt := fmt.Sprintf("failed to get orders from database: %v", err)
+		http.Error(w, errtxt, http.StatusInternalServerError)
+		log.Printf(errtxt + "\n")
 
 		return
 	}
+
+	w.Header().Add("Content-Type", ctJSON)
 
 	w.Write(res)
 }
