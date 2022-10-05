@@ -9,11 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-chi/chi"
+
 	"github.com/usa4ev/gophermart/internal/config"
 	"github.com/usa4ev/gophermart/internal/server"
 	"github.com/usa4ev/gophermart/internal/storage"
-
-	"github.com/go-chi/chi"
 )
 
 func main() {

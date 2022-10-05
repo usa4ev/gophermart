@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	_ "github.com/jackc/pgx/stdlib"
+
 	"github.com/usa4ev/gophermart/internal/auth"
 	"github.com/usa4ev/gophermart/internal/orders"
 	"github.com/usa4ev/gophermart/internal/storage/storageerrs"
-
-	"github.com/google/uuid"
-	_ "github.com/jackc/pgx/stdlib"
 )
 
 type (
@@ -243,11 +243,7 @@ func (db Database) LoadOrders(ctx context.Context, userID string) ([]byte, error
 		return nil, fmt.Errorf("failed to encode orders: %w", err)
 	}
 
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("failed to scan query results when getting orders from Database: %w", err)
-	}
-
-	return buf.Bytes(), nil
+	return buf.Bytes(), rows.Err()
 }
 
 func (db Database) LoadBalance(ctx context.Context, userID string) (float64, float64, error) {
@@ -273,11 +269,7 @@ func (db Database) LoadBalance(ctx context.Context, userID string) (float64, flo
 		}
 	}
 
-	if rows.Err() != nil {
-		return 0, 0, fmt.Errorf("failed to scan query results when getting balance from Database: %w", err)
-	}
-
-	return total, withdrawn, nil
+	return total, withdrawn, rows.Err()
 }
 
 func (db Database) Withdraw(ctx context.Context, userID, number string, sum float64) error {
@@ -324,11 +316,7 @@ func (db Database) LoadWithdrawals(ctx context.Context, userID string) ([]byte, 
 		return nil, fmt.Errorf("failed to encode withdrawals: %w", err)
 	}
 
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("failed to scan query results when getting withdrawals from Database: %w", err)
-	}
-
-	return buf.Bytes(), nil
+	return buf.Bytes(), rows.Err()
 }
 
 func (db Database) OrdersToProcess(ctx context.Context) (map[string]string, error) {
@@ -354,11 +342,7 @@ func (db Database) OrdersToProcess(ctx context.Context) (map[string]string, erro
 		ordersMap[order.Number] = order.Status
 	}
 
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("failed to scan query results when getting orders to process from Database: %w", err)
-	}
-
-	return ordersMap, nil
+	return ordersMap, rows.Err()
 }
 
 func (db Database) UpdateStatuses(ctx context.Context, batch []orders.Status) error {
